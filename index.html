@@ -21,16 +21,19 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            
+            /* UPDATED: Pushes the game board to the top rather than centering it vertically */
+            justify-content: flex-start; 
             min-height: 100vh;
             
-            /* Updated: Removed extra padding, strictly respects device notch/safe areas */
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
+            /* UPDATED: Minimal padding at the top + safe area for the notch */
+            padding-top: calc(env(safe-area-inset-top) + 15px);
+            padding-bottom: calc(env(safe-area-inset-bottom) + 15px);
             box-sizing: border-box;
 
-            /* Prevents double-tap to zoom */
-            touch-action: manipulation;
+            /* UPDATED: Allows scrolling (pan) but disables double-tap and pinch-to-zoom */
+            touch-action: pan-x pan-y;
+            
             font-family: 'MS Sans Serif', Tahoma, Geneva, sans-serif;
             -webkit-user-select: none;
             user-select: none;
@@ -114,7 +117,9 @@
         #board {
             display: grid;
             grid-template-columns: repeat(9, 1fr);
-            touch-action: none; /* Crucial for long-press to work without scrolling */
+            
+            /* Prevents scrolling only when touching the actual grid */
+            touch-action: none; 
         }
 
         /* Individual Cells */
@@ -160,7 +165,7 @@
 
         /* Mobile specific controls (since no right-click) */
         #mobile-controls {
-            margin-top: 10px; /* Tightened spacing */
+            margin-top: 15px;
             display: flex;
             gap: 15px;
         }
@@ -171,7 +176,7 @@
             border-top: 2px solid var(--win-border-light);
             border-right: 2px solid var(--win-border-dark);
             border-bottom: 2px solid var(--win-border-dark);
-            padding: 8px 16px; /* Reduced button bulk */
+            padding: 8px 16px;
             font-size: 16px;
             font-weight: bold;
             font-family: inherit;
@@ -190,10 +195,11 @@
         .instructions {
             color: #aaa;
             font-size: 13px;
-            margin-top: 10px; /* Tightened spacing */
+            margin-top: 15px;
             text-align: center;
             max-width: 300px;
             font-family: sans-serif;
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -221,6 +227,15 @@
     </div>
 
     <script>
+        // --- Safari specific anti-zoom bulletproofing ---
+        document.addEventListener('gesturestart', function (e) {
+            e.preventDefault();
+        });
+        document.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+        // ------------------------------------------------
+
         const ROWS = 9;
         const COLS = 9;
         const TOTAL_MINES = 10;
