@@ -12,28 +12,25 @@
             --win-border-light: #ffffff;
             --win-border-dark: #808080;
             --win-text: #000000;
+            
+            /* Dynamic Grid Variables */
+            --cols: 9;
+            --cell-size: 36px;
         }
 
         body {
             margin: 0;
             padding: 0;
-            background-color: #2b2b2b; /* Dark backdrop for modern phones */
+            background-color: #2b2b2b;
             display: flex;
             flex-direction: column;
             align-items: center;
-            
-            /* UPDATED: Pushes the game board to the top rather than centering it vertically */
             justify-content: flex-start; 
             min-height: 100vh;
-            
-            /* UPDATED: Minimal padding at the top + safe area for the notch */
             padding-top: calc(env(safe-area-inset-top) + 15px);
             padding-bottom: calc(env(safe-area-inset-bottom) + 15px);
             box-sizing: border-box;
-
-            /* UPDATED: Allows scrolling (pan) but disables double-tap and pinch-to-zoom */
             touch-action: pan-x pan-y;
-            
             font-family: 'MS Sans Serif', Tahoma, Geneva, sans-serif;
             -webkit-user-select: none;
             user-select: none;
@@ -116,27 +113,34 @@
         /* The Grid */
         #board {
             display: grid;
-            grid-template-columns: repeat(9, 1fr);
-            
-            /* Prevents scrolling only when touching the actual grid */
+            /* Updated to use CSS variable for columns */
+            grid-template-columns: repeat(var(--cols), 1fr);
             touch-action: none; 
+            /* Fixed board size (9 cols * 36px = 324px) */
+            width: 324px;
+            height: 324px;
         }
 
         /* Individual Cells */
         .cell {
-            width: 36px;
-            height: 36px;
+            /* Updated to scale dynamically based on difficulty */
+            width: var(--cell-size);
+            height: var(--cell-size);
             background-color: var(--win-bg);
-            border-left: 3px solid var(--win-border-light);
-            border-top: 3px solid var(--win-border-light);
-            border-right: 3px solid var(--win-border-dark);
-            border-bottom: 3px solid var(--win-border-dark);
+            
+            /* Reduced border thickness slightly to accommodate expert sizes */
+            border-left: 2px solid var(--win-border-light);
+            border-top: 2px solid var(--win-border-light);
+            border-right: 2px solid var(--win-border-dark);
+            border-bottom: 2px solid var(--win-border-dark);
             box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 900;
-            font-size: 20px;
+            
+            /* Font size scales down with the cell */
+            font-size: calc(var(--cell-size) * 0.55);
             cursor: pointer;
         }
 
@@ -163,7 +167,7 @@
         .n7 { color: #000000; }
         .n8 { color: #808080; }
 
-        /* Mobile specific controls (since no right-click) */
+        /* Mobile specific controls */
         #mobile-controls {
             margin-top: 15px;
             display: flex;
@@ -185,6 +189,39 @@
         }
 
         .mode-btn.active {
+            border-left: 2px solid var(--win-border-dark);
+            border-top: 2px solid var(--win-border-dark);
+            border-right: 2px solid var(--win-border-light);
+            border-bottom: 2px solid var(--win-border-light);
+            background-color: #e0e0e0;
+        }
+        
+        /* New Difficulty Toggle Bar */
+        #difficulty-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 5px;
+            width: 324px; /* Matches board width */
+            justify-content: space-between;
+        }
+
+        .diff-btn {
+            background-color: var(--win-bg);
+            border-left: 2px solid var(--win-border-light);
+            border-top: 2px solid var(--win-border-light);
+            border-right: 2px solid var(--win-border-dark);
+            border-bottom: 2px solid var(--win-border-dark);
+            padding: 6px 4px;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            color: var(--win-text);
+            flex: 1;
+            text-align: center;
+        }
+
+        .diff-btn.active {
             border-left: 2px solid var(--win-border-dark);
             border-top: 2px solid var(--win-border-dark);
             border-right: 2px solid var(--win-border-light);
@@ -222,6 +259,14 @@
         <button id="btn-flag" class="mode-btn">🚩 Flag</button>
     </div>
 
+    <!-- Difficulty Toggle Bar -->
+    <div id="difficulty-controls">
+        <button id="diff-beginner" class="diff-btn active">Beginner</button>
+        <button id="diff-normal" class="diff-btn">Normal</button>
+        <button id="diff-hard" class="diff-btn">Hard</button>
+        <button id="diff-expert" class="diff-btn">Expert</button>
+    </div>
+
     <div class="instructions">
         Tip: You can use the buttons above to switch modes, or <b>long-press</b> a square to place a flag!
     </div>
@@ -236,9 +281,10 @@
         }, { passive: false });
         // ------------------------------------------------
 
-        const ROWS = 9;
-        const COLS = 9;
-        const TOTAL_MINES = 10;
+        // Updated variables to let them change dynamically
+        let ROWS = 9;
+        let COLS = 9;
+        let TOTAL_MINES = 10;
 
         let board = [];
         let isFirstClick = true;
@@ -247,8 +293,8 @@
         let cellsRevealed = 0;
         let timerInterval = null;
         let timeElapsed = 0;
-        let currentMode = 'dig'; // 'dig' or 'flag'
-        let pressTimer = null; // for long press
+        let currentMode = 'dig'; 
+        let pressTimer = null; 
 
         const boardEl = document.getElementById('board');
         const mineCountEl = document.getElementById('mine-count');
@@ -256,6 +302,7 @@
         const smileyBtn = document.getElementById('smiley-btn');
         const btnDig = document.getElementById('btn-dig');
         const btnFlag = document.getElementById('btn-flag');
+        const diffBtns = document.querySelectorAll('.diff-btn');
 
         // Sounds/Haptics fallback
         function vibrate() {
@@ -266,6 +313,30 @@
         btnDig.addEventListener('click', () => setMode('dig'));
         btnFlag.addEventListener('click', () => setMode('flag'));
         smileyBtn.addEventListener('click', initGame);
+
+        // Difficulty Button Logic
+        diffBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Toggle active styling
+                diffBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                const diff = e.target.id.replace('diff-', '');
+                
+                // Set parameters based on standard square proportions
+                if (diff === 'beginner') { ROWS = 9; COLS = 9; TOTAL_MINES = 10; }
+                else if (diff === 'normal') { ROWS = 12; COLS = 12; TOTAL_MINES = 20; }
+                else if (diff === 'hard') { ROWS = 16; COLS = 16; TOTAL_MINES = 50; }
+                else if (diff === 'expert') { ROWS = 22; COLS = 22; TOTAL_MINES = 99; }
+                
+                // Math to enforce a strict 324x324 viewport size
+                const cellSize = 324 / COLS;
+                document.documentElement.style.setProperty('--cols', COLS);
+                document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
+                
+                initGame();
+            });
+        });
 
         function setMode(mode) {
             currentMode = mode;
@@ -347,7 +418,7 @@
         // Pointer event handlers for unified touch/mouse + long press logic
         function handlePointerDown(e) {
             if (isGameOver) return;
-            if (e.button === 2) return; // ignore right click here, handled by contextmenu event below (fallback)
+            if (e.button === 2) return; // ignore right click here
             
             const r = parseInt(e.target.dataset.r);
             const c = parseInt(e.target.dataset.c);
